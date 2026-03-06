@@ -1,7 +1,17 @@
 /**
- * Récepteur FSK avec algorithme de Goertzel
+ * Récepteur FSK avec algorithme de Goertzel + Déchiffrement AES-128
  * Détection précise de 1kHz et 2kHz
  */
+
+#include "mbedtls/aes.h"
+
+// Clé AES-128 (16 bytes) - Identique à l'émetteur
+unsigned char aes_key[16] = {
+  0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+  0xab, 0xf7, 0x97, 0x46, 0x09, 0xcf, 0x4f, 0x3c
+};
+
+mbedtls_aes_context aes;
 
 #define PIN_PD 34
 #define FREQ_BIT0 1000  // 1 kHz pour bit 0
@@ -22,7 +32,7 @@ float coeff_2000;
 void setup() {
   Serial.begin(115200);
   pinMode(PIN_PD, INPUT);
-  Serial.println("=== RÉCEPTEUR FSK GOERTZEL 1kHz/2kHz ===");
+  Serial.println("=== RÉCEPTEUR FSK GOERTZEL 1kHz/2kHz + AES-128 ===");
   
   // Précalculer les coefficients Goertzel
   float k_1000 = (0.5 + ((N_SAMPLES * FREQ_BIT0) / (float)SAMPLE_RATE));
@@ -38,37 +48,49 @@ void setup() {
   Serial.println(coeff_1000, 4);
   Serial.print("Coeff 2kHz: ");
   Serial.println(coeff_2000, 4);
+  
+  // Initialiser AES
+  mbedtls_aes_init(&aes);
+  if(mbedtls_aes_setkey_dec(&aes, aes_key, 128) == 0) {
+    Serial.println("AES-128: ✅");
+  } else {
+    Serial.println("AES-128: ❌");
+  }
+  
   Serial.println("En attente...\n");
 }
 
 void loop() {
   if (chercherSynchronisation()) {
-    Serial.println("\n>>> RECEPTION DONNEES");
+    Serial.println("\n>>> RECEPTION DONNEES CHIFFREES");
     
-    // Recevoir 4 bytes
-    Serial.print("Temp High: ");
-    byte temp_high = recevoirByte();
-    
-    Serial.print("Temp Low:  ");
-    byte temp_low = recevoirByte();
-    
-    Serial.print("Hum High:  ");
-    byte hum_high = recevoirByte();
-    
-    Serial.print("Hum Low:   ");
-    byte hum_low = recevoirByte();
-    
-    // Recevoir checksum
-    Serial.print("Checksum:  ");
-    byte checksum_recu = recevoirByte();
-    
-    // Calculer checksum
-    byte checksum_calcule = (temp_high + temp_low + hum_high + hum_low) & 0xFF;
+    // Recevoir 16 bytes chiffrés (bloc AES complet)
+    unsigned char ciphertext[16];
+    for(int i=0; i<16; i++) {
+      Serial.print("Byte ");
+      Serial.print(i);
+      Serial.print(": ");
+      ciphertext[i] = recevoirByte();
+    }
     
     // Vérifier la fin
     Serial.println("\n>>> Verification FIN");
     if (verifierFin()) {
       Serial.println("FIN OK!");
+      
+      // Déchiffrer avec AES-128
+      unsigned char plaintext[16];
+      mbedtls_aes_crypt_ecb(&aes, MBEDTLS_AES_DECRYPT, ciphertext, plaintext);
+      
+      // Extraire les données déchiffrées
+      byte temp_high = plaintext[0];
+      byte temp_low = plaintext[1];
+      byte hum_high = plaintext[2];
+      byte hum_low = plaintext[3];
+      byte checksum_recu = plaintext[4];
+      
+      // Calculer checksum
+      byte checksum_calcule = (temp_high + temp_low + hum_high + hum_low) & 0xFF;
       
       if (checksum_recu == checksum_calcule) {
         Serial.println("CHECKSUM OK!");
@@ -81,7 +103,7 @@ void loop() {
         float humidite = hum_int / 10.0;
         
         Serial.println("\n========================================");
-        Serial.println("       DONNEES VALIDES");
+        Serial.println("   DONNEES DECHIFFREES ET VALIDES");
         Serial.println("========================================");
         Serial.print("  Temperature: ");
         Serial.print(temperature, 1);

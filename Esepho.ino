@@ -1,13 +1,22 @@
 /**
- * Émetteur FSK avec DHT22
- * Transmission: Température et Humidité
+ * Émetteur FSK avec DHT22 + Chiffrement AES-128
+ * Transmission: Température et Humidité chiffrées
  */
 
 #include <DHT.h>
+#include "mbedtls/aes.h"
 
 #define DHTPIN 4
 #define DHTTYPE DHT22
 DHT dht(DHTPIN, DHTTYPE);
+
+// Clé AES-128 (16 bytes) - À partager avec le récepteur
+unsigned char aes_key[16] = {
+  0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+  0xab, 0xf7, 0x97, 0x46, 0x09, 0xcf, 0x4f, 0x3c
+};
+
+mbedtls_aes_context aes;
 
 #define PIN_LED 25
 #define LEDC_RESOLUTION 8
@@ -18,7 +27,7 @@ DHT dht(DHTPIN, DHTTYPE);
 void setup() {
   Serial.begin(115200);
   delay(1000);
-  Serial.println("\n=== ÉMETTEUR FSK LiFi + DHT22 ===");
+  Serial.println("\n=== ÉMETTEUR FSK LiFi + DHT22 + AES-128 ===");
   
   // Attacher le pin au LEDC avec une fréquence initiale
   bool ok = ledcAttach(PIN_LED, FREQ_BIT0, LEDC_RESOLUTION);
@@ -28,6 +37,14 @@ void setup() {
   // Initialiser DHT22
   dht.begin();
   Serial.println("DHT22: ✅");
+  
+  // Initialiser AES
+  mbedtls_aes_init(&aes);
+  if(mbedtls_aes_setkey_enc(&aes, aes_key, 128) == 0) {
+    Serial.println("AES-128: ✅");
+  } else {
+    Serial.println("AES-128: ❌");
+  }
   
   delay(2000);
 }
@@ -68,17 +85,29 @@ void loop() {
   int temp_int = (int)(temperature * 10);
   int hum_int = (int)(humidite * 10);
   
-  // Préparer les bytes à envoyer
+  // Préparer les bytes à envoyer (données en clair)
   byte temp_high = highByte(temp_int);
   byte temp_low = lowByte(temp_int);
   byte hum_high = highByte(hum_int);
   byte hum_low = lowByte(hum_int);
   
-  // Calculer checksum
+  // Préparer le bloc de 16 bytes pour AES (padding avec des zéros)
+  unsigned char plaintext[16] = {0};
+  plaintext[0] = temp_high;
+  plaintext[1] = temp_low;
+  plaintext[2] = hum_high;
+  plaintext[3] = hum_low;
+  
+  // Calculer checksum des données en clair
   byte checksum = (temp_high + temp_low + hum_high + hum_low) & 0xFF;
+  plaintext[4] = checksum;
+  
+  // Chiffrer avec AES-128
+  unsigned char ciphertext[16];
+  mbedtls_aes_crypt_ecb(&aes, MBEDTLS_AES_ENCRYPT, plaintext, ciphertext);
   
   Serial.println("\n========================================");
-  Serial.println(">>> TRANSMISSION");
+  Serial.println(">>> TRANSMISSION CHIFFREE");
   Serial.print("Temperature: ");
   Serial.print(temperature, 1);
   Serial.println(" C");
@@ -94,16 +123,11 @@ void loop() {
     sendBit(0);
   }
   
-  // DONNÉES: 4 bytes (temp_high, temp_low, hum_high, hum_low)
-  Serial.println("2. Envoi DONNEES (4 bytes)");
-  sendByte(temp_high);
-  sendByte(temp_low);
-  sendByte(hum_high);
-  sendByte(hum_low);
-  
-  // CHECKSUM: 1 byte
-  Serial.println("3. Envoi CHECKSUM");
-  sendByte(checksum);
+  // DONNÉES CHIFFRÉES: 16 bytes (bloc AES complet)
+  Serial.println("2. Envoi DONNEES CHIFFREES (16 bytes AES)");
+  for(int i=0; i<16; i++) {
+    sendByte(ciphertext[i]);
+  }
   
   // FIN: 00000000 (8 bits)
   Serial.println("4. Envoi FIN: 00000000");
