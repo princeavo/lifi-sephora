@@ -210,10 +210,6 @@ byte recevoirByte() {
     }
   }
   
-  for (int i = 7; i >= 0; i--) {
-    Serial.print((data >> i) & 0x01);
-  }
-  Serial.print(" -> ");
   Serial.println(data);
   
   return data;
