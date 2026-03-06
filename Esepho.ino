@@ -116,6 +116,48 @@ void loop() {
   Serial.println(" %");
   Serial.println("========================================");
   
+  // Afficher les données en clair
+  Serial.println("\nDonnees EN CLAIR (5 bytes):");
+  Serial.print("  [0] Temp High:  0x");
+  Serial.print(plaintext[0], HEX);
+  Serial.print(" (");
+  Serial.print(plaintext[0]);
+  Serial.println(")");
+  Serial.print("  [1] Temp Low:   0x");
+  Serial.print(plaintext[1], HEX);
+  Serial.print(" (");
+  Serial.print(plaintext[1]);
+  Serial.println(")");
+  Serial.print("  [2] Hum High:   0x");
+  Serial.print(plaintext[2], HEX);
+  Serial.print(" (");
+  Serial.print(plaintext[2]);
+  Serial.println(")");
+  Serial.print("  [3] Hum Low:    0x");
+  Serial.print(plaintext[3], HEX);
+  Serial.print(" (");
+  Serial.print(plaintext[3]);
+  Serial.println(")");
+  Serial.print("  [4] Checksum:   0x");
+  Serial.print(plaintext[4], HEX);
+  Serial.print(" (");
+  Serial.print(plaintext[4]);
+  Serial.println(")");
+  
+  // Afficher les données chiffrées
+  Serial.println("\nDonnees CHIFFREES AES-128 (16 bytes):");
+  for(int i=0; i<16; i++) {
+    Serial.print("  [");
+    Serial.print(i);
+    Serial.print("] 0x");
+    if(ciphertext[i] < 16) Serial.print("0");
+    Serial.print(ciphertext[i], HEX);
+    Serial.print(" (");
+    Serial.print(ciphertext[i]);
+    Serial.println(")");
+  }
+  Serial.println();
+  
   // PRÉAMBULE: 10101010 (8 bits)
   Serial.println("1. Envoi PREAMBULE: 10101010");
   for(int i=0; i<4; i++) {

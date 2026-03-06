@@ -73,6 +73,19 @@ void loop() {
       ciphertext[i] = recevoirByte();
     }
     
+    // Afficher les données chiffrées reçues
+    Serial.println("\nDonnees CHIFFREES recues (16 bytes):");
+    for(int i=0; i<16; i++) {
+      Serial.print("  [");
+      Serial.print(i);
+      Serial.print("] 0x");
+      if(ciphertext[i] < 16) Serial.print("0");
+      Serial.print(ciphertext[i], HEX);
+      Serial.print(" (");
+      Serial.print(ciphertext[i]);
+      Serial.println(")");
+    }
+    
     // Vérifier la fin
     Serial.println("\n>>> Verification FIN");
     if (verifierFin()) {
@@ -81,6 +94,34 @@ void loop() {
       // Déchiffrer avec AES-128
       unsigned char plaintext[16];
       mbedtls_aes_crypt_ecb(&aes, MBEDTLS_AES_DECRYPT, ciphertext, plaintext);
+      
+      // Afficher les données déchiffrées
+      Serial.println("\nDonnees DECHIFFREES (5 bytes):");
+      Serial.print("  [0] Temp High:  0x");
+      Serial.print(plaintext[0], HEX);
+      Serial.print(" (");
+      Serial.print(plaintext[0]);
+      Serial.println(")");
+      Serial.print("  [1] Temp Low:   0x");
+      Serial.print(plaintext[1], HEX);
+      Serial.print(" (");
+      Serial.print(plaintext[1]);
+      Serial.println(")");
+      Serial.print("  [2] Hum High:   0x");
+      Serial.print(plaintext[2], HEX);
+      Serial.print(" (");
+      Serial.print(plaintext[2]);
+      Serial.println(")");
+      Serial.print("  [3] Hum Low:    0x");
+      Serial.print(plaintext[3], HEX);
+      Serial.print(" (");
+      Serial.print(plaintext[3]);
+      Serial.println(")");
+      Serial.print("  [4] Checksum:   0x");
+      Serial.print(plaintext[4], HEX);
+      Serial.print(" (");
+      Serial.print(plaintext[4]);
+      Serial.println(")");
       
       // Extraire les données déchiffrées
       byte temp_high = plaintext[0];
