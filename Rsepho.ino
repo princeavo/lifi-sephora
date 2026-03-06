@@ -19,12 +19,6 @@ mbedtls_aes_context aes;
 #define SAMPLE_RATE 10000  // 10 kHz
 #define N_SAMPLES 100     // 10ms à 10kHz (synchronisé avec émetteur)
 
-// Seuil adaptatif
-int valMin = 4095;
-int valMax = 0;
-int seuil = 2000;
-unsigned long lastCalibration = 0;
-
 // Coefficients Goertzel précalculés
 float coeff_1000;
 float coeff_2000;
@@ -224,28 +218,25 @@ bool recevoirBitGoertzel() {
   for(int i = 0; i < N_SAMPLES; i++) {
     samples[i] = analogRead(PIN_PD);
     
-    // Mise à jour seuil adaptatif
-    if(samples[i] < valMin) valMin = samples[i];
-    if(samples[i] > valMax) valMax = samples[i];
-    
     // Attendre pour avoir 10kHz d'échantillonnage
     while(micros() - startTime < (i+1) * samplePeriod) {
       // Attente active
     }
   }
   
-  // Recalculer seuil périodiquement
-  if(millis() - lastCalibration > 100) {
-    seuil = (valMin + valMax) / 2;
-    lastCalibration = millis();
-    valMin = 4095;
-    valMax = 0;
+  // Calculer le seuil pour ce bloc d'échantillons
+  int localMin = 4095;
+  int localMax = 0;
+  for(int i = 0; i < N_SAMPLES; i++) {
+    if(samples[i] < localMin) localMin = samples[i];
+    if(samples[i] > localMax) localMax = samples[i];
   }
+  int localSeuil = (localMin + localMax) / 2;
   
   // Normaliser les échantillons (centrer autour de 0)
   int normalizedSamples[N_SAMPLES];
   for(int i = 0; i < N_SAMPLES; i++) {
-    normalizedSamples[i] = samples[i] - seuil;
+    normalizedSamples[i] = samples[i] - localSeuil;
   }
   
   // Calculer magnitude pour 1000Hz
@@ -266,9 +257,11 @@ bool recevoirBitGoertzel() {
   }
   float magnitude_2000 = sqrt(q1_2000*q1_2000 + q2_2000*q2_2000 - q1_2000*q2_2000*coeff_2000);
   
-  // Décider quel bit
-  if(magnitude_2000 > magnitude_1000) {
-    return 1;  // 2000Hz dominant = bit 1
+  // Décider quel bit avec un ratio pour plus de robustesse
+  float ratio = magnitude_2000 / (magnitude_1000 + 1.0);
+  
+  if(ratio > 1.2) {
+    return 1;  // 2000Hz clairement dominant = bit 1
   } else {
     return 0;  // 1000Hz dominant = bit 0
   }
