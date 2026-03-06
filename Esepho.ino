@@ -22,7 +22,7 @@ mbedtls_aes_context aes;
 #define LEDC_RESOLUTION 8
 #define FREQ_BIT0 1000  // 1 kHz pour bit 0
 #define FREQ_BIT1 2000  // 2 kHz pour bit 1
-#define BIT_DURATION 10  // 10ms pour 100 bits/s (plus lent = plus fiable)
+#define BIT_DURATION 5  // 5ms pour 200 bits/s
 
 void setup() {
   Serial.begin(115200);
@@ -66,7 +66,6 @@ void sendByte(byte data) {
     bool bit = (data >> i) & 0x01;
     sendBit(bit);
   }
-  delay(2);  // Petit délai entre les bytes
 }
 
 void loop() {
