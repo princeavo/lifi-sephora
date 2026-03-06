@@ -17,7 +17,7 @@ mbedtls_aes_context aes;
 #define FREQ_BIT0 1000  // 1 kHz pour bit 0
 #define FREQ_BIT1 2000  // 2 kHz pour bit 1
 #define SAMPLE_RATE 10000  // 10 kHz
-#define N_SAMPLES 50      // 5ms à 10kHz
+#define N_SAMPLES 100     // 10ms à 10kHz (synchronisé avec émetteur)
 
 // Seuil adaptatif
 int valMin = 4095;
