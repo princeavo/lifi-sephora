@@ -26,8 +26,8 @@ mbedtls_aes_context aes;
 #define FREQ_BIT0       1000    // 1 kHz → bit 0
 #define FREQ_BIT1       2000    // 2 kHz → bit 1
 #define SAMPLE_RATE     10000   // 10 kHz d'échantillonnage
-#define N_SAMPLES       50      // 50 × 100µs = 5ms par bit
-#define BIT_DURATION_US 5000UL  // durée d'un bit en microsecondes
+#define N_SAMPLES       100     // 100 × 100µs = 10ms par bit
+#define BIT_DURATION_US 10000UL // durée d'un bit en microsecondes (100 bps)
 
 // Coefficients Goertzel précalculés
 float coeff_1000;
@@ -194,7 +194,8 @@ bool chercherSynchronisation() {
   while (timeout < 1000) {
     bool patternOK = true;
 
-    for (int i = 0; i < 4; i++) {
+    // Préambule étendu : 16 bits (8 paires "10") — réduit les fausses synchronisations
+    for (int i = 0; i < 8; i++) {
       bool bit1 = recevoirBitLibre();
       bool bit0 = recevoirBitLibre();
 
@@ -205,7 +206,7 @@ bool chercherSynchronisation() {
     }
 
     if (patternOK) {
-      // Le préambule vient de se terminer.
+      // Le préambule (16 bits) vient de se terminer.
       // Les données commencent AU PROCHAIN bit (maintenant).
       // On enregistre l'instant de référence absolu pour toute la trame.
       g_frameStartUs  = micros();

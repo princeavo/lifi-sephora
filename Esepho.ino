@@ -35,7 +35,7 @@ mbedtls_aes_context aes;
 #define LEDC_RESOLUTION 8
 #define FREQ_BIT0 1000  // 1 kHz pour bit 0
 #define FREQ_BIT1 2000  // 2 kHz pour bit 1
-#define BIT_DURATION 5  // 5ms pour 200 bits/s
+#define BIT_DURATION 10  // 10ms → 100 bits/s (BER réduit par meilleure intégration Goertzel)
 
 // ============================================================
 //   CODE CORRECTEUR D'ERREUR — HAMMING(7,4)
@@ -215,16 +215,16 @@ void loop() {
 
   // ─────────────── TRANSMISSION ───────────────
 
-  // 1. PRÉAMBULE : 10101010 (8 bits)
-  Serial.println("\n1. Envoi PREAMBULE: 10101010");
-  for (int i = 0; i < 4; i++) {
+  // 1. PRÉAMBULE : 1010101010101010 (16 bits — réduit les fausses sync)
+  Serial.println("\n1. Envoi PREAMBULE: 1010101010101010 (16 bits)");
+  for (int i = 0; i < 8; i++) {
     sendBit(1);
     sendBit(0);
   }
 
   // 2. DONNÉES : 16 bytes AES encodés en Hamming(7,4)
   //    → 16 × 14 bits = 224 bits transmis
-  Serial.println("2. Envoi DONNEES CHIFFREES protegees Hamming(7,4) (16 bytes → 224 bits)");
+  Serial.println("2. Envoi DONNEES CHIFFREES protegees Hamming(7,4) (16 bytes → 224 bits @ 100bps)");
   for (int i = 0; i < 16; i++) {
     sendByteHamming(ciphertext[i]);
   }
